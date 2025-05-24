@@ -1,8 +1,9 @@
-﻿// esp.cpp
-#include <windows.h>
+﻿#include <windows.h>
 #include <d3d11.h>
 #include <tchar.h>
 #include <cstdio>
+#include <thread>
+#include <chrono>
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_dx11.h"
@@ -21,37 +22,31 @@ void             CleanupDeviceD3D();
 void             CreateRenderTarget();
 void             CleanupRenderTarget();
 
-// Convert world coordinates to screen coordinates
-static bool WorldToScreen(const Vector3& pos, ImVec2& out) {
+// Fast world→screen
+static inline bool WorldToScreen(const Vector3& pos, ImVec2& out) {
     float clipX = pos.x * viewMatrix[0] + pos.y * viewMatrix[1] + pos.z * viewMatrix[2] + viewMatrix[3];
     float clipY = pos.x * viewMatrix[4] + pos.y * viewMatrix[5] + pos.z * viewMatrix[6] + viewMatrix[7];
     float w = pos.x * viewMatrix[12] + pos.y * viewMatrix[13] + pos.z * viewMatrix[14] + viewMatrix[15];
     if (w < 0.01f) return false;
     float invW = 1.0f / w;
-    float ndcX = clipX * invW;
-    float ndcY = clipY * invW;
-
     ImGuiIO& io = ImGui::GetIO();
-    out.x = (ndcX * 0.5f + 0.5f) * io.DisplaySize.x;
-    out.y = (1.0f - (ndcY * 0.5f + 0.5f)) * io.DisplaySize.y;
+    out.x = (clipX * invW * 0.5f + 0.5f) * io.DisplaySize.x;
+    out.y = (1.0f - (clipY * invW * 0.5f + 0.5f)) * io.DisplaySize.y;
     return true;
 }
 
-// esp.cpp — the full RunESP() function
+// ESP overlay runner (returns exit code)
 int RunESP() {
-    WNDCLASSEX wc{ sizeof(wc), CS_CLASSDC, WndProc, 0, 0,
-                   GetModuleHandle(NULL), NULL, NULL, NULL, NULL,
-                   _T("CS2ESP"), NULL };
+    WNDCLASSEX wc{ sizeof(wc), CS_CLASSDC, WndProc, 0,0, GetModuleHandle(NULL), NULL,NULL,NULL,NULL, _T("CS2ESP"), NULL };
     RegisterClassEx(&wc);
     HWND hwnd = CreateWindowEx(
-        WS_EX_TOPMOST|WS_EX_LAYERED|WS_EX_TRANSPARENT,
+        WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT,
         wc.lpszClassName, _T("CS2 External ESP"),
         WS_POPUP, 0, 0,
-        GetSystemMetrics(SM_CXSCREEN),
-        GetSystemMetrics(SM_CYSCREEN),
+        GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
         NULL, NULL, wc.hInstance, NULL);
-    SetLayeredWindowAttributes(hwnd,0,0,LWA_COLORKEY);
-    SetWindowPos(hwnd,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE);
+    SetLayeredWindowAttributes(hwnd, 0, 0, LWA_COLORKEY);
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
     if (!CreateDeviceD3D(hwnd)) {
         CleanupDeviceD3D();
@@ -60,56 +55,58 @@ int RunESP() {
     }
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
-    IMGUI_CHECKVERSION(); ImGui::CreateContext();
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
-    MSG msg; ZeroMemory(&msg,sizeof(msg));
+    MSG msg; ZeroMemory(&msg, sizeof(msg));
     while (msg.message != WM_QUIT) {
-        if (PeekMessage(&msg,NULL,0,0,PM_REMOVE)) {
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-            continue;
         }
+        if (msg.message == WM_QUIT) break;
 
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        auto dl = ImGui::GetBackgroundDrawList();
-        for (int i = 0; i < entityCount; ++i) {
-            if (i == 0) continue;                   // skip self
+        ImDrawList* dl = ImGui::GetBackgroundDrawList();
+        for (int i = 1; i < entityCount; ++i) {
             if (entityLifeState[i] == 2 || entityHealth[i] <= 0) continue;
 
-            ImVec2 p0(entityHeadPos[i].x - (entityFootPos[i].y-entityHeadPos[i].y)*0.25f,
-                      entityHeadPos[i].y);
-            ImVec2 p1(entityHeadPos[i].x + (entityFootPos[i].y-entityHeadPos[i].y)*0.25f,
-                      entityFootPos[i].y);
-            dl->AddRect(p0,p1,IM_COL32(255,0,0,255),0,0,2);
+            float h = entityFootPos[i].y - entityHeadPos[i].y;
+            if (h <= 0) continue;
+            float w = h * 0.5f;
+            ImVec2 p0(entityHeadPos[i].x - w * 0.5f, entityHeadPos[i].y);
+            ImVec2 p1(p0.x + w, p0.y + h);
 
-            // health bar
-            float bw = 4.0f;
-            ImVec2 hb0(p0.x - bw -1, p0.y);
-            ImVec2 hb1(p0.x -1,      p1.y);
-            dl->AddRectFilled(hb0,hb1,IM_COL32(0,0,0,150));
-            float frac = entityHealth[i]/100.f;
-            ImVec2 hf0(hb0.x, hb1.y - (hb1.y-hb0.y)*frac);
-            ImVec2 hf1(hb1.x, hb1.y);
-            dl->AddRectFilled(hf0,hf1,IM_COL32(0,255,0,255));
+            dl->AddRect(p0, p1, IM_COL32(255, 0, 0, 255), 0, 0, 2);
 
-            // team text
-            char buf[16];
+            const float bw = 4.0f;
+            ImVec2 hb0(p0.x - bw - 1, p0.y);
+            ImVec2 hb1(p0.x - 1, p1.y);
+            dl->AddRectFilled(hb0, hb1, IM_COL32(0, 0, 0, 150));
+            float frac = entityHealth[i] * 0.01f;
+            ImVec2 hf0(hb0.x, hb1.y - (hb1.y - hb0.y) * frac);
+            dl->AddRectFilled(hf0, hb1, IM_COL32(0, 255, 0, 255));
+
+            char buf[8];
             sprintf_s(buf, sizeof(buf), "T:%d", entityTeam[i]);
-            dl->AddText(ImVec2(p1.x+2,p0.y), IM_COL32(255,255,255,255), buf);
+            dl->AddText(ImVec2(p1.x + 2, p0.y), IM_COL32(255, 255, 255, 255), buf);
         }
 
         ImGui::Render();
-        static float clear[4]={0,0,0,0};
-        g_pd3dDeviceContext->OMSetRenderTargets(1,&g_mainRenderTargetView,NULL);
-        g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView,clear);
+        static const float clear[4] = { 0,0,0,0 };
+        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
+        g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-        g_pSwapChain->Present(0,0);
+
+        std::this_thread::sleep_for(std::chrono::microseconds(500));
+        g_pSwapChain->Present(0, 0);
     }
 
     ImGui_ImplDX11_Shutdown();
@@ -120,6 +117,14 @@ int RunESP() {
     UnregisterClass(wc.lpszClassName, wc.hInstance);
     return 0;
 }
+
+// Launch ESP on its own thread
+void StartESPThread() {
+    std::thread(RunESP).detach();
+}
+
+// D3D helper functions (unchanged)
+
 
 
 bool CreateDeviceD3D(HWND hWnd) {
@@ -199,3 +204,4 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     }
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
+

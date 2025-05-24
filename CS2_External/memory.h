@@ -3,7 +3,7 @@
 struct Vector3 { float x, y, z; };
 struct ScreenPos { float x, y; };
 
-static constexpr int MAX_ENTITY_COUNT = 10;
+static constexpr int MAX_ENTITY_COUNT = 1000;
 
 extern Vector3    entityPositions[MAX_ENTITY_COUNT];
 extern int        entityLifeState[MAX_ENTITY_COUNT];
@@ -21,3 +21,5 @@ extern float      viewMatrix[16];
 
 void UpdateEntityData();    // made public
 void StartMemoryThread();
+int RunESP();
+void StartESPThread();

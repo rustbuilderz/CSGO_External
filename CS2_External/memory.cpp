@@ -1,5 +1,4 @@
-﻿// memory.cpp
-#include "memory.h"
+﻿#include "memory.h"
 #include "offsets.hpp"       // a2x-dumped offsets
 #include <Windows.h>
 #include <TlHelp32.h>
@@ -107,9 +106,10 @@ void UpdateEntityData() {
         ReadMem(hProc, pe + (ph & 0x1FF) * 0x78, pw);
         if (!pw) continue;
 
-        // Read world origin (no longer filtering out zeros)
+        // Read world origin (filter zeroed entries)
         Vector3 pos{};
         ReadMem(hProc, pw + OFF_VEC_ORIGIN, pos);
+        if (pos.x == 0.0f && pos.y == 0.0f && pos.z == 0.0f) continue;
 
         // Head world pos
         Vector3 headWorld{ pos.x, pos.y, pos.z + 75.0f };
