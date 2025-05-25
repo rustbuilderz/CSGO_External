@@ -46,11 +46,6 @@ static uintptr_t GetModuleBaseAddress(DWORD pid, const wchar_t* modName) {
     return 0;
 }
 
-template<typename T>
-static bool ReadMem(HANDLE hProc, uintptr_t addr, T& out) {
-    return ReadProcessMemory(hProc, reinterpret_cast<LPCVOID>(addr), &out, sizeof(out), nullptr) != 0;
-}
-
 // — Core update loop —
 void UpdateEntityData() {
     static HANDLE    hProc = nullptr;

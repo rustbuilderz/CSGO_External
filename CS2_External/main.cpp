@@ -32,7 +32,6 @@ int main() {
                 << " T=" << entityTeam[i]
                     << "\n";
     }
-
     // Launch the ImGui ESP window
     return RunESP();
 }

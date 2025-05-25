@@ -23,8 +23,10 @@ namespace cs2_dumper {
             constexpr std::ptrdiff_t dwViewMatrix = 0x1A67FA0;
             constexpr std::ptrdiff_t dwViewRender = 0x1A688F0;
             constexpr std::ptrdiff_t dwWeaponC4 = 0x1A01320;
-            // Entity property: life state (0 = alive, 1 = down, 2 = dead)
             constexpr std::ptrdiff_t m_lifeState = 0x348;  // decimal 840
+            constexpr std::ptrdiff_t m_vOldOrigin = 0x1324;
+			constexpr std::ptrdiff_t m_angEyeAngles = 0x1438;
+			constexpr std::ptrdiff_t m_hPlayerPawn = 0x824;
         }
         // Module: engine2.dll
         namespace engine2_dll {
