@@ -140,6 +140,8 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="menu.cpp" />
+    <ClCompile Include="overlay.cpp" />
+    <ClCompile Include="render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h" />
@@ -153,6 +155,8 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="menu.h" />
     <ClInclude Include="offsets.hpp" />
+    <ClInclude Include="overlay.h" />
+    <ClInclude Include="render.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="client_dll.json" />

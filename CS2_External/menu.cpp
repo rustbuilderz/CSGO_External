@@ -4,12 +4,23 @@
 #include <string>
 #include "memory.h"      // brings in extern bool g_teamCheck;
 
+bool g_showESP = false;
+bool g_showHealthBar = false;
+bool g_showTeamText = false;
+bool g_menuShown = false;
+bool g_showSkeletons = false;
+bool g_showNames = false;
+bool g_teamCheck = false;
+bool g_showBoxes = false;
+bool g_showStats = false; 
+bool g_shutdown = false;
+
 // Simple nav state
 static int g_currentPage = 1; // 0=Home,1=ESP,2=Settings
 
 // Path to config file
 static const char* CONFIG_PATH = "config.json";
-static bool configLoaded = true;
+static bool configLoaded = false;
 
 // Synthetic-like style
 static void ApplySyntheticStyle() {
@@ -64,7 +75,6 @@ static void SaveConfig() {
 }
 
 void RenderMenu() {
-    // One-time load
     if (!configLoaded) {
         LoadConfig();
         configLoaded = true;
@@ -75,42 +85,73 @@ void RenderMenu() {
     ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - 600) / 2, (io.DisplaySize.y - 400) / 2), ImGuiCond_FirstUseEver);
 
-    ImGui::Begin("Synthetic Config", nullptr, ImGuiWindowFlags_NoCollapse);
-    ImGui::Columns(2, nullptr, true);
+    ImGui::Begin("Synthetic Config", nullptr,
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
 
-    // Navigation
-    ImGui::BeginChild("##nav", ImVec2(150, 0), true);
-    if (ImGui::Selectable("Home", g_currentPage == 0, ImGuiSelectableFlags_SpanAllColumns)) g_currentPage = 0;
-    if (ImGui::Selectable("ESP", g_currentPage == 1, ImGuiSelectableFlags_SpanAllColumns)) g_currentPage = 1;
-    if (ImGui::Selectable("Settings", g_currentPage == 2, ImGuiSelectableFlags_SpanAllColumns)) g_currentPage = 2;
-    ImGui::EndChild();
-    ImGui::NextColumn();
+    // --- Header ---
+    ImGui::TextWrapped("Configure your overlay settings below. Click Panic in Home tab to exit immediately.");
+    ImGui::Separator();
 
-    // Content
-    ImGui::BeginChild("##body", ImVec2(0, 0), false);
-    if (g_currentPage == 0) {
-        ImGui::Text("Welcome to Synthetic!");
-    }
-    else if (g_currentPage == 1) {
-        ImGui::TextColored(ImVec4(0.5f, 0.5f, 1, 1), "ESP Options");
-        ImGui::Separator();
-        ImGui::Checkbox("Enable ESP Boxes", &g_showESP);
-        ImGui::Checkbox("Show Health Bars", &g_showHealthBar);
-        ImGui::Checkbox("Show Team Text", &g_showTeamText);
-        ImGui::Checkbox("Team Check (only show enemies)", &g_teamCheck);  // ← new
-    }
+    // --- Tab Bar ---
+    if (ImGui::BeginTabBar("##tabs", ImGuiTabBarFlags_Reorderable)) {
+        // Home Tab
+        if (ImGui::BeginTabItem("Home")) {
+            ImGui::Spacing();
+            ImGui::TextWrapped("Welcome to Synthetic!\nUse the tabs above to tweak your ESP, rendering and other options.");
+            ImGui::Spacing();
 
-    else if (g_currentPage == 2) {
-        ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1), "Settings");
-        ImGui::Separator();
-        if (ImGui::Button("Save to Config")) {
-            SaveConfig();
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.9f, 0.3f, 0.3f, 1.0f));
+            if (ImGui::Button("Panic", ImVec2(-1, 0))) {
+                g_shutdown = true;
+            }
+            ImGui::PopStyleColor(2);
+            ImGui::EndTabItem();
         }
-		if (ImGui::Button("Load from Config")) {
-			LoadConfig();
-		}
+
+        // ESP Tab
+        if (ImGui::BeginTabItem("ESP")) {
+            ImGui::Spacing();
+            ImGui::Text("General:");
+            ImGui::Indent(10);
+            ImGui::Checkbox("Enable ESP", &g_showESP);
+            ImGui::Checkbox("Show Boxes Around Players", &g_showBoxes);
+            ImGui::Checkbox("Show Health Bars", &g_showHealthBar);
+            ImGui::Checkbox("Show Team Text", &g_showTeamText);
+            ImGui::Unindent(10);
+
+            ImGui::Separator();
+            ImGui::Text("Extras:");
+            ImGui::Indent(10);
+            ImGui::Checkbox("Only show enemies (Team Check)", &g_teamCheck);
+            ImGui::Checkbox("Draw Skeletons", &g_showSkeletons);
+            ImGui::Checkbox("Draw Names", &g_showNames);
+            ImGui::Unindent(10);
+
+            ImGui::Separator();
+            ImGui::Checkbox("Show Statistics Overlay", &g_showStats);
+
+            ImGui::EndTabItem();
+        }
+
+        // Settings Tab
+        if (ImGui::BeginTabItem("Settings")) {
+            ImGui::Spacing();
+            ImGui::Text("Configuration:");
+            ImGui::Indent(10);
+            if (ImGui::Button("Save to Config", ImVec2(120, 0))) {
+                SaveConfig();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Load from Config", ImVec2(120, 0))) {
+                LoadConfig();
+            }
+            ImGui::Unindent(10);
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
     }
-    ImGui::EndChild();
-    ImGui::Columns(1);
+
     ImGui::End();
 }

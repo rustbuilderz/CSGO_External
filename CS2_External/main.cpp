@@ -4,11 +4,14 @@
 #include <chrono>
 #include "offsets.hpp"
 #include "memory.h"
-
+#include "menu.h"
 // Forward to our ESP runner
 int RunESP();
 
 int main() {
+
+
+
     // One-time offset dump
     std::cout << "dwEntityList = 0x"
         << std::hex << cs2_dumper::offsets::client_dll::dwEntityList
@@ -35,9 +38,10 @@ int main() {
     std::thread espThread(RunESP);
     espThread.detach();
 
+
     // block forever (or until you signal exit)
-    while (true) {
+    while (!g_shutdown) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
-	return 0;
+
 }
