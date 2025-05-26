@@ -32,6 +32,12 @@ int main() {
                 << " T=" << entityTeam[i]
                     << "\n";
     }
-    // Launch the ImGui ESP window
-    return RunESP();
+    std::thread espThread(RunESP);
+    espThread.detach();
+
+    // block forever (or until you signal exit)
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	return 0;
 }

@@ -1,61 +1,41 @@
 ﻿#pragma once
-
-#include <Windows.h>
 #include <cstddef>
 #include <cstdint>
-
-// — Basic math & screen types —
-struct Vector3 { float x, y, z; };
-struct ScreenPos { float x, y; };
-
+#include <string>
+// maximum entities
 static constexpr int MAX_ENTITY_COUNT = 1000;
 
-// — Raw world data (populated by UpdateEntityData) —
-extern Vector3    entityPositions[MAX_ENTITY_COUNT];
-extern int        entityLifeState[MAX_ENTITY_COUNT];
-extern int        entityHealth[MAX_ENTITY_COUNT];
-extern int        entityTeam[MAX_ENTITY_COUNT];
+// simple 3D point
+struct Vector3 { float x, y, z; };
 
-// — Screen‐space positions (foot & head) —
-extern ScreenPos  entityFootPos[MAX_ENTITY_COUNT];
-extern ScreenPos  entityHeadPos[MAX_ENTITY_COUNT];
+// on-screen coordinate
+struct ScreenPos { float x, y; };
 
-extern int        entityCount;      // number of valid entities read
-extern float      viewMatrix[16];   // 4×4 view/projection matrix
+// world‐space data (filled by UpdateEntityData)
+extern Vector3   entityPositions[MAX_ENTITY_COUNT];
+extern int       entityLifeState[MAX_ENTITY_COUNT];
+extern int       entityHealth[MAX_ENTITY_COUNT];
+extern int       entityTeam[MAX_ENTITY_COUNT];
+extern bool g_teamCheck;
+// screen‐space buffers (filled by UpdateEntityData)
+extern ScreenPos entityFootPos[MAX_ENTITY_COUNT];
+extern ScreenPos entityHeadPos[MAX_ENTITY_COUNT];
 
-// — Memory‐reading & process helpers —
+// how many valid entries above
+extern int       entityCount;
 
-// returns PID of the given exe name (e.g. L"cs2.exe") or 0 if not found
-DWORD GetProcId(const wchar_t* procName);
+// view matrix (4×4 float)
+extern float     viewMatrix[16];
 
-// returns base address of module 'modName' in process 'procId', or 0 on failure
-uintptr_t GetModuleBaseAddress(DWORD procId, const wchar_t* modName);
-
-// reads sizeof(T) bytes from 'addr' in process hProc into out.
-// returns true on success.
-template<typename T>
-inline bool ReadMem(HANDLE hProc, uintptr_t addr, T& out) {
-    return ReadProcessMemory(
-        hProc,
-        reinterpret_cast<LPCVOID>(addr),
-        &out,
-        sizeof(T),
-        nullptr
-    ) != 0;
-}
-
-// — Entry points —
-
-// Launches a background thread that continuously updates entityPositions, etc.
+// Launches a background thread to keep these updated at ~60Hz
 void StartMemoryThread();
 
-// Immediately performs one UpdateEntityData pass on the calling thread
+// Performs one immediate batch update on this thread
 void UpdateEntityData();
 
-// Launches the ESP overlay in its own thread
-void StartESPThread();
-int  RunESP();
+void RenderMenu();
+bool GetBonePosition(int entIdx, int boneIndex, Vector3& out);
 
-DWORD GetProcId(const wchar_t* procName);
-uintptr_t GetModuleBaseAddress(DWORD procId, const wchar_t* modName);
-
+extern uintptr_t entityPawnPtr[MAX_ENTITY_COUNT];
+extern uintptr_t entityBoneArray[MAX_ENTITY_COUNT];
+bool GetPlayerName(int entIdx, std::string& out);

@@ -2,6 +2,7 @@
 #include "imgui/imgui.h"
 #include <fstream>
 #include <string>
+#include "memory.h"      // brings in extern bool g_teamCheck;
 
 // Simple nav state
 static int g_currentPage = 1; // 0=Home,1=ESP,2=Settings
@@ -96,7 +97,9 @@ void RenderMenu() {
         ImGui::Checkbox("Enable ESP Boxes", &g_showESP);
         ImGui::Checkbox("Show Health Bars", &g_showHealthBar);
         ImGui::Checkbox("Show Team Text", &g_showTeamText);
+        ImGui::Checkbox("Team Check (only show enemies)", &g_teamCheck);  // ← new
     }
+
     else if (g_currentPage == 2) {
         ImGui::TextColored(ImVec4(0.9f, 0.7f, 0.3f, 1), "Settings");
         ImGui::Separator();

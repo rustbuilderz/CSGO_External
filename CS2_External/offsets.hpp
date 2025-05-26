@@ -27,6 +27,8 @@ namespace cs2_dumper {
             constexpr std::ptrdiff_t m_vOldOrigin = 0x1324;
 			constexpr std::ptrdiff_t m_angEyeAngles = 0x1438;
 			constexpr std::ptrdiff_t m_hPlayerPawn = 0x824;
+            constexpr std::ptrdiff_t m_pGameSceneNode = 0x328;
+            constexpr std::ptrdiff_t m_sSanitizedPlayerName = 0x778;
         }
         // Module: engine2.dll
         namespace engine2_dll {

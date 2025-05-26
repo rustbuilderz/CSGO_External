@@ -1,11 +1,31 @@
 ﻿#include "memory.h"
-#include "offsets.hpp"       // a2x-dumped offsets
+#include "offsets.hpp"
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <thread>
 #include <chrono>
+#include <string>
 
-// — Definitions of all globals —
+
+// file-scope handle & base
+static HANDLE    hProc = nullptr;
+static uintptr_t clientBase = 0;
+
+// offsets
+using namespace cs2_dumper::offsets::client_dll;
+constexpr auto OFF_ENTITY_LIST = dwEntityList;
+constexpr auto OFF_VIEW_MATRIX = dwViewMatrix;
+constexpr auto OFF_ORIGIN = m_vOldOrigin;
+constexpr auto OFF_LIFESTATE = m_lifeState;
+constexpr auto OFF_PLAYERPAWN = m_hPlayerPawn;
+constexpr auto OFF_GAME_SCENE_NODE = m_pGameSceneNode;  // == 808
+constexpr size_t OFF_HEALTH = 836;
+constexpr size_t OFF_TEAM = 995;
+
+// this offset was observed in other code: sceneNode + 0x1F0 → boneArray
+static constexpr size_t OFF_BONE_ARRAY = 0x1F0;
+
+// globals
 Vector3   entityPositions[MAX_ENTITY_COUNT];
 int       entityLifeState[MAX_ENTITY_COUNT];
 int       entityHealth[MAX_ENTITY_COUNT];
@@ -13,156 +33,176 @@ int       entityTeam[MAX_ENTITY_COUNT];
 ScreenPos entityFootPos[MAX_ENTITY_COUNT];
 ScreenPos entityHeadPos[MAX_ENTITY_COUNT];
 int       entityCount = 0;
-float     viewMatrix[16]; // 4×4
+float     viewMatrix[16];
 
-// — Helpers —
-static DWORD GetProcId(const wchar_t* procName) {
-    PROCESSENTRY32W e{ sizeof(e) };
+// ← new storage for pointers
+uintptr_t entityPawnPtr[MAX_ENTITY_COUNT] = {};
+uintptr_t entityBoneArray[MAX_ENTITY_COUNT] = {};
+
+uintptr_t entityEntPtr[MAX_ENTITY_COUNT] = {};
+
+static constexpr size_t OFF_ENTITY_NAME = m_sSanitizedPlayerName;
+
+// simple ReadMem wrapper
+inline bool ReadMem(HANDLE proc, uintptr_t src, void* dst, SIZE_T sz) {
+    SIZE_T rd = 0;
+    return ReadProcessMemory(proc, (LPCVOID)src, dst, sz, &rd) && rd == sz;
+}
+
+static DWORD GetProcId(const wchar_t* name) {
+    PROCESSENTRY32W pe{ sizeof(pe) };
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (Process32FirstW(snap, &e)) {
+    if (Process32FirstW(snap, &pe)) {
         do {
-            if (!_wcsicmp(e.szExeFile, procName)) {
+            if (!_wcsicmp(pe.szExeFile, name)) {
                 CloseHandle(snap);
-                return e.th32ProcessID;
+                return pe.th32ProcessID;
             }
-        } while (Process32NextW(snap, &e));
+        } while (Process32NextW(snap, &pe));
     }
     CloseHandle(snap);
     return 0;
 }
 
-static uintptr_t GetModuleBaseAddress(DWORD pid, const wchar_t* modName) {
-    MODULEENTRY32W m{ sizeof(m) };
+static uintptr_t GetModuleBaseAddress(DWORD pid, const wchar_t* mod) {
+    MODULEENTRY32W me{ sizeof(me) };
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
-    if (Module32FirstW(snap, &m)) {
+    if (Module32FirstW(snap, &me)) {
         do {
-            if (!_wcsicmp(m.szModule, modName)) {
+            if (!_wcsicmp(me.szModule, mod)) {
                 CloseHandle(snap);
-                return reinterpret_cast<uintptr_t>(m.modBaseAddr);
+                return reinterpret_cast<uintptr_t>(me.modBaseAddr);
             }
-        } while (Module32NextW(snap, &m));
+        } while (Module32NextW(snap, &me));
     }
     CloseHandle(snap);
     return 0;
 }
 
-// — Core update loop —
 void UpdateEntityData() {
-    static HANDLE    hProc = nullptr;
-    static uintptr_t clientBase = 0;
     if (!hProc) {
         DWORD pid = GetProcId(L"cs2.exe");
+        if (!pid) return;
         clientBase = GetModuleBaseAddress(pid, L"client.dll");
         hProc = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, pid);
+        if (!hProc) return;
     }
-
-    // Offsets (verify OFF_VEC_ORIGIN in your dump!)
-    constexpr auto OFF_ENTITY_LIST = cs2_dumper::offsets::client_dll::dwEntityList;
-    constexpr auto OFF_VIEW_MATRIX = cs2_dumper::offsets::client_dll::dwViewMatrix;
-    constexpr auto OFF_PLAYER_PAWN = 0x824;   // m_hPlayerPawn
-    constexpr auto OFF_VEC_ORIGIN = 4900;    // m_vOldOrigin
-    constexpr auto OFF_LIFE_STATE = cs2_dumper::offsets::client_dll::m_lifeState;
-    constexpr auto OFF_HEALTH = 836;     // m_iHealth
-    constexpr auto OFF_TEAM = 995;     // m_iTeamNum
-
-    // Read view matrix
-    ReadMem(hProc, clientBase + OFF_VIEW_MATRIX, viewMatrix);
-
-    // Read entity list pointer
-    uintptr_t listPtr = 0;
-    ReadMem(hProc, clientBase + OFF_ENTITY_LIST, listPtr);
-
-    Vector3   tmpPos[MAX_ENTITY_COUNT];
-    ScreenPos tmpFoot[MAX_ENTITY_COUNT];
-    ScreenPos tmpHead[MAX_ENTITY_COUNT];
-    int       tmpLife[MAX_ENTITY_COUNT];
-    int       tmpHealth[MAX_ENTITY_COUNT];
-    int       tmpTeam[MAX_ENTITY_COUNT];
-    int       count = 0;
 
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
 
-    // Iterate all entity slots
+    // read view matrix
+    ReadMem(hProc, clientBase + OFF_VIEW_MATRIX, viewMatrix, sizeof(viewMatrix));
+
+    // read entity list pointer
+    uintptr_t listPtr = 0;
+    ReadMem(hProc, clientBase + OFF_ENTITY_LIST, &listPtr, sizeof(listPtr));
+    if (!listPtr) return;
+
+    int count = 0;
     for (int i = 0; i < MAX_ENTITY_COUNT; ++i) {
-        uintptr_t le = 0, en = 0, ph = 0, pe = 0, pw = 0;
-        ReadMem(hProc, listPtr + ((i & 0x7FFF) >> 9) * 8 + 0x10, le);
-        if (!le) continue;
+        // 1) page resolution
+        int pageIdx = (i & 0x7FFF) >> 9;
+        int inPageIdx = i & 0x1FF;
+        uintptr_t pagePtr = 0;
+        ReadMem(hProc, listPtr + 0x10 + pageIdx * 8, &pagePtr, sizeof(pagePtr));
+        if (!pagePtr) continue;
 
-        ReadMem(hProc, le + (i & 0x1FF) * 0x78, en);
-        if (!en) continue;
+        // 2) entry → entPtr
+        uintptr_t entPtr = 0;
+        ReadMem(hProc, pagePtr + inPageIdx * 0x78, &entPtr, sizeof(entPtr));
+        if (!entPtr) continue;
 
-        ReadMem(hProc, en + OFF_PLAYER_PAWN, ph);
-        if (!ph) continue;
+        // 3) store valid entPtr
+        entityEntPtr[count] = entPtr;
 
-        ReadMem(hProc, listPtr + ((ph & 0x7FFF) >> 9) * 8 + 0x10, pe);
-        if (!pe) continue;
+        // 4) follow pawn handle → pawnPtr
+        uintptr_t handle = 0;
+        ReadMem(hProc, entPtr + OFF_PLAYERPAWN, &handle, sizeof(handle));
+        if (!handle) continue;
+        int pPageIdx = (handle & 0x7FFF) >> 9;
+        int pInPageIdx = handle & 0x1FF;
+        uintptr_t pawnPage = 0;
+        ReadMem(hProc, listPtr + 0x10 + pPageIdx * 8, &pawnPage, sizeof(pawnPage));
+        if (!pawnPage) continue;
+        uintptr_t pawnPtr = 0;
+        ReadMem(hProc, pawnPage + pInPageIdx * 0x78, &pawnPtr, sizeof(pawnPtr));
+        if (!pawnPtr) continue;
 
-        ReadMem(hProc, pe + (ph & 0x1FF) * 0x78, pw);
-        if (!pw) continue;
+        // 5) read origin/state …
+        Vector3 pos{}; ReadMem(hProc, pawnPtr + OFF_ORIGIN, &pos, sizeof(pos));
+        if (pos.x == 0 && pos.y == 0 && pos.z == 0) continue;
+        uint8_t ls;    ReadMem(hProc, pawnPtr + OFF_LIFESTATE, &ls, sizeof(ls));
+        int     hl;    ReadMem(hProc, pawnPtr + OFF_HEALTH, &hl, sizeof(hl));
+        int     tm;    ReadMem(hProc, pawnPtr + OFF_TEAM, &tm, sizeof(tm));
 
-        // Read world origin (filter zeroed entries)
-        Vector3 pos{};
-        ReadMem(hProc, pw + OFF_VEC_ORIGIN, pos);
-        if (pos.x == 0.0f && pos.y == 0.0f && pos.z == 0.0f) continue;
+        entityPositions[count] = pos;
+        entityLifeState[count] = ls;
+        entityHealth[count] = hl;
+        entityTeam[count] = tm;
+        entityPawnPtr[count] = pawnPtr;
 
-        // Head world pos
-        Vector3 headWorld{ pos.x, pos.y, pos.z + 75.0f };
+        // 6) scene-node → boneArray …
+        uintptr_t sceneNode = 0;
+        ReadMem(hProc, pawnPtr + OFF_GAME_SCENE_NODE, &sceneNode, sizeof(sceneNode));
+        uintptr_t boneArr = 0;
+        if (sceneNode)
+            ReadMem(hProc, sceneNode + OFF_BONE_ARRAY, &boneArr, sizeof(boneArr));
+        entityBoneArray[count] = boneArr;
 
-        // Read states
-        uint8_t life8 = 0; ReadMem(hProc, pw + OFF_LIFE_STATE, life8);
-        int     life = static_cast<int>(life8);
-        int     health = 0; ReadMem(hProc, pw + OFF_HEALTH, health);
-        int     team = 0; ReadMem(hProc, pw + OFF_TEAM, team);
+        // 7) project foot & head …
+        Vector3 headW = { pos.x, pos.y, pos.z + 75.f };
+        auto proj = [&](const Vector3& w, ScreenPos& o) {
+            float cx = w.x * viewMatrix[0] + w.y * viewMatrix[1] + w.z * viewMatrix[2] + viewMatrix[3];
+            float cy = w.x * viewMatrix[4] + w.y * viewMatrix[5] + w.z * viewMatrix[6] + viewMatrix[7];
+            float w4 = w.x * viewMatrix[12] + w.y * viewMatrix[13] + w.z * viewMatrix[14] + viewMatrix[15];
+            if (w4 < 0.01f) { o.x = o.y = -1; return; }
+            float inv = 1.f / w4;
+            o.x = (cx * inv * 0.5f + 0.5f) * screenW;
+            o.y = (1.f - (cy * inv * 0.5f + 0.5f)) * screenH;
+            };
+        proj(pos, entityFootPos[count]);
+        proj(headW, entityHeadPos[count]);
 
-        // Foot → screen
-        {
-            float clipX = pos.x * viewMatrix[0] + pos.y * viewMatrix[1] + pos.z * viewMatrix[2] + viewMatrix[3];
-            float clipY = pos.x * viewMatrix[4] + pos.y * viewMatrix[5] + pos.z * viewMatrix[6] + viewMatrix[7];
-            float w = pos.x * viewMatrix[12] + pos.y * viewMatrix[13] + pos.z * viewMatrix[14] + viewMatrix[15];
-            if (w > 0.01f) {
-                float invW = 1.0f / w;
-                tmpFoot[count].x = ((clipX * invW) * 0.5f + 0.5f) * screenW;
-                tmpFoot[count].y = (1.0f - ((clipY * invW) * 0.5f + 0.5f)) * screenH;
-            }
-        }
-        // Head → screen
-        {
-            float clipX = headWorld.x * viewMatrix[0] + headWorld.y * viewMatrix[1] + headWorld.z * viewMatrix[2] + viewMatrix[3];
-            float clipY = headWorld.x * viewMatrix[4] + headWorld.y * viewMatrix[5] + headWorld.z * viewMatrix[6] + viewMatrix[7];
-            float w = headWorld.x * viewMatrix[12] + headWorld.y * viewMatrix[13] + headWorld.z * viewMatrix[14] + viewMatrix[15];
-            if (w > 0.01f) {
-                float invW = 1.0f / w;
-                tmpHead[count].x = ((clipX * invW) * 0.5f + 0.5f) * screenW;
-                tmpHead[count].y = (1.0f - ((clipY * invW) * 0.5f + 0.5f)) * screenH;
-            }
-        }
-
-        tmpPos[count] = pos;
-        tmpLife[count] = life;
-        tmpHealth[count] = health;
-        tmpTeam[count] = team;
         ++count;
     }
 
-    // Commit globals
     entityCount = count;
-    for (int j = 0; j < count; ++j) {
-        entityPositions[j] = tmpPos[j];
-        entityLifeState[j] = tmpLife[j];
-        entityHealth[j] = tmpHealth[j];
-        entityTeam[j] = tmpTeam[j];
-        entityFootPos[j] = tmpFoot[j];
-        entityHeadPos[j] = tmpHead[j];
-    }
+}
+
+bool GetPlayerName(int entIdx, std::string& out) {
+    if (entIdx < 0 || entIdx >= entityCount) return false;
+    uintptr_t entPtr = entityEntPtr[entIdx];
+    if (!entPtr || !hProc) return false;
+
+    // read the pointer to the unicode/UTF-8 string
+    uintptr_t namePtr = 0;
+    if (!ReadMem(hProc, entPtr + OFF_ENTITY_NAME, &namePtr, sizeof(namePtr)))
+        return false;
+
+    // read up to 64 or 128 bytes from that pointer
+    char buffer[128] = {};
+    if (!ReadMem(hProc, namePtr, buffer, sizeof(buffer)))
+        return false;
+
+    // trim at first null
+    out.assign(buffer, strnlen_s(buffer, sizeof(buffer)));
+    return !out.empty();
+}
+bool GetBonePosition(int entIdx, int boneIndex, Vector3& out) {
+    if (entIdx < 0 || entIdx >= entityCount) return false;
+    uintptr_t ba = entityBoneArray[entIdx];
+    if (!ba || !hProc) return false;
+    // each entry is 32 bytes, first 12 bytes = Vector3
+    return ReadMem(hProc, ba + boneIndex * 32, &out, sizeof(out));
 }
 
 void StartMemoryThread() {
-    std::thread([] {
+    std::thread([]() {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         while (true) {
             UpdateEntityData();
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
         }
         }).detach();
 }

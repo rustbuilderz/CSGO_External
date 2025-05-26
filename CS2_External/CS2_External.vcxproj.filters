@@ -86,8 +86,10 @@
     <ClInclude Include="menu.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="WICTextureLoader.h">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="client_dll.json">
       <Filter>Source Files</Filter>
-    </ClInclude>
+    </None>
   </ItemGroup>
 </Project>

@@ -153,7 +153,9 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="menu.h" />
     <ClInclude Include="offsets.hpp" />
-    <ClInclude Include="WICTextureLoader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="client_dll.json" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
