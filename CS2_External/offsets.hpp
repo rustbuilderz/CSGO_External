@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstddef>
 
@@ -29,6 +29,9 @@ namespace cs2_dumper {
 			constexpr std::ptrdiff_t m_hPlayerPawn = 0x824;
             constexpr std::ptrdiff_t m_pGameSceneNode = 0x328;
             constexpr std::ptrdiff_t m_sSanitizedPlayerName = 0x778;
+            constexpr std::ptrdiff_t m_vecAbsOrigin = 0xD0;
+            constexpr std::ptrdiff_t m_bBombPlanted = 0x1B7B;
+            constexpr std::ptrdiff_t m_vecVelocity = 0x400;  // linear world‐space velocity
         }
         // Module: engine2.dll
         namespace engine2_dll {

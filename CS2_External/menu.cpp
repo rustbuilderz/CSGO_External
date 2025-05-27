@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include "memory.h"      // brings in extern bool g_teamCheck;
+#include "aimbot.h"
 
 bool g_showESP = false;
 bool g_showHealthBar = false;
@@ -130,7 +131,10 @@ void RenderMenu() {
 
             ImGui::Separator();
             ImGui::Checkbox("Show Statistics Overlay", &g_showStats);
-
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Aimbot")) {
+            RenderAimbotSettings();
             ImGui::EndTabItem();
         }
 

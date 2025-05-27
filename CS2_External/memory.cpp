@@ -21,6 +21,9 @@ constexpr auto OFF_PLAYERPAWN = m_hPlayerPawn;
 constexpr auto OFF_GAME_SCENE_NODE = m_pGameSceneNode;  // == 808
 constexpr size_t OFF_HEALTH = 836;
 constexpr size_t OFF_TEAM = 995;
+constexpr auto OFF_DW_PLANTED_C4 = dwPlantedC4;
+constexpr auto OFF_VEC_ABSORIGIN = m_vecAbsOrigin;      // ≈ 208
+constexpr auto OFF_PLANTED_C4_HANDLE = m_bBombPlanted;
 
 // this offset was observed in other code: sceneNode + 0x1F0 → boneArray
 static constexpr size_t OFF_BONE_ARRAY = 0x1F0;
@@ -42,6 +45,13 @@ uintptr_t entityBoneArray[MAX_ENTITY_COUNT] = {};
 uintptr_t entityEntPtr[MAX_ENTITY_COUNT] = {};
 
 static constexpr size_t OFF_ENTITY_NAME = m_sSanitizedPlayerName;
+
+// non‐inline ReadMem that uses our file‐scope hProc
+bool ReadMem(uintptr_t src, void* dst, size_t sz) {
+    SIZE_T rd = 0;
+    return ReadProcessMemory(hProc, (LPCVOID)src, dst, sz, &rd) && rd == sz;
+}
+
 
 // simple ReadMem wrapper
 inline bool ReadMem(HANDLE proc, uintptr_t src, void* dst, SIZE_T sz) {
@@ -202,7 +212,7 @@ void StartMemoryThread() {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
         while (true) {
             UpdateEntityData();
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            std::this_thread::sleep_for(std::chrono::milliseconds(7));
         }
         }).detach();
 }

@@ -54,7 +54,8 @@ bool Overlay_CreateDeviceD3D(HWND hWnd)
     sd.BufferDesc.RefreshRate = { 60,1 };
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     sd.OutputWindow = hWnd;
-    sd.SampleDesc.Count = 1;
+    sd.SampleDesc.Count = 4;
+    sd.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
     sd.Windowed = TRUE;
     sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 

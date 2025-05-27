@@ -11,6 +11,7 @@
 #include "menu.h"
 #include "memory.h"
 #include <windows.h>
+#include "aimbot.h"
 
 int RunESP()
 {
@@ -39,6 +40,9 @@ int RunESP()
     if (!Overlay_CreateDeviceD3D(g_hWndOverlay)) return 1;
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.AntiAliasedLines = true;
+    style.AntiAliasedFill = true;
     ImGui::StyleColorsDark();
     ImGui_ImplWin32_Init(g_hWndOverlay);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
@@ -115,8 +119,7 @@ int RunESP()
         g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-        // — Present + throttle
-        g_pSwapChain->Present(1, 0);
+        g_pSwapChain->Present(0, 0);
         auto dt = std::chrono::steady_clock::now() - t0;
         if (dt < frameTime)
             std::this_thread::sleep_for(frameTime - dt);

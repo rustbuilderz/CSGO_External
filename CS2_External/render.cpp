@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "menu.h"
 
 // explicit bone → index map (no structured bindings needed here)
 static const std::vector<std::vector<int>> skeletonChains = {

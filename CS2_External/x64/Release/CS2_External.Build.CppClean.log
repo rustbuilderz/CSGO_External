@@ -1,4 +1,6 @@
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\vc143.pdb
+c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\render.obj
+c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\overlay.obj
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\menu.obj
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\memory.obj
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\main.obj
@@ -10,9 +12,7 @@ c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\imgui_
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\imgui_demo.obj
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\imgui.obj
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\esp.obj
-c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\render.obj
-c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\overlay.obj
-c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\config.obj
+c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\aimbot.obj
 c:\users\systems\documents\projects\cs2_external\x64\release\cs2_external.exe
 c:\users\systems\documents\projects\cs2_external\x64\release\cs2_external.pdb
 c:\users\systems\documents\projects\cs2_external\cs2_external\x64\release\cs2_external.ipdb
