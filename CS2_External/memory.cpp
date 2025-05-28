@@ -24,6 +24,8 @@ constexpr size_t OFF_TEAM = 995;
 constexpr auto OFF_DW_PLANTED_C4 = dwPlantedC4;
 constexpr auto OFF_VEC_ABSORIGIN = m_vecAbsOrigin;      // ≈ 208
 constexpr auto OFF_PLANTED_C4_HANDLE = m_bBombPlanted;
+constexpr auto OFF_ACTIVE_WEAPON_HANDLE = m_hActiveWeapon;
+constexpr auto OFF_PAWN_WEAPON_SERVICES = m_pWeaponServices;
 
 // this offset was observed in other code: sceneNode + 0x1F0 → boneArray
 static constexpr size_t OFF_BONE_ARRAY = 0x1F0;
@@ -205,6 +207,41 @@ bool GetBonePosition(int entIdx, int boneIndex, Vector3& out) {
     if (!ba || !hProc) return false;
     // each entry is 32 bytes, first 12 bytes = Vector3
     return ReadMem(hProc, ba + boneIndex * 32, &out, sizeof(out));
+}
+
+bool GetEntityHeldWeapon(int entIdx, std::string& out) {
+    if (entIdx < 0 || entIdx >= entityCount)
+        return false;
+
+    // 1) grab the pawn pointer you stored in UpdateEntityData
+    uintptr_t pawn = entityPawnPtr[entIdx];
+    if (!pawn) return false;
+
+    // 2) read the active-weapon handle (high bits = unique object id, low 12 bits = index)
+    uint32_t handle = 0;
+    if (!ReadMem(pawn + OFF_ACTIVE_WEAPON_HANDLE, &handle, sizeof(handle)))
+        return false;
+
+    int weaponIdx = handle & 0x0FFF; // low 12 bits
+    if (weaponIdx < 0 || weaponIdx >= entityCount)
+        return false;
+
+    // 3) now we already have the entity pointer for every slot, so:
+    uintptr_t weaponEnt = entityEntPtr[weaponIdx];
+    if (!weaponEnt) return false;
+
+    // 4) read its sanitized-name pointer
+    uintptr_t namePtr = 0;
+    if (!ReadMem(weaponEnt + OFF_ENTITY_NAME, &namePtr, sizeof(namePtr)) || !namePtr)
+        return false;
+
+    // 5) read up to 64 chars
+    char buf[64] = {};
+    if (!ReadMem(namePtr, buf, sizeof(buf)))
+        return false;
+
+    out = buf;
+    return !out.empty();
 }
 
 void StartMemoryThread() {

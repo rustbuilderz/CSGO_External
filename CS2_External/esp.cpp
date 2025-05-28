@@ -91,14 +91,18 @@ int RunESP()
         auto dl = ImGui::GetBackgroundDrawList();
         if (GetForegroundWindow() == hGameWnd) {
             for (int i = 1; i < entityCount; ++i) {
-                if (g_showBoxes&g_showESP) RenderESPBox(dl, i);
-                if (g_showHealthBar & g_showESP) RenderHealthBar(dl, i);
-                if (g_showTeamText & g_showESP) RenderTeamText(dl, i);
-                if (g_showSkeletons & g_showESP) DrawSkeleton(dl, i);
-                if (g_showNames & g_showESP) DrawName(dl, i);
+                if (g_showBoxes && g_showESP) RenderESPBox(dl, i);
+                if (g_showHealthBar && g_showESP) RenderHealthBar(dl, i);
+                if (g_showTeamText && g_showESP) RenderTeamText(dl, i);
+                if (g_showSkeletons && g_showESP) DrawSkeleton(dl, i);
+                if (g_showNames && g_showESP) DrawName(dl, i);
             }
+
         }
+        if (g_drawFovCircle && g_enableAimbot) DrawFOVCircle();
+        if (g_drawCrosshair) DrawCrosshair();
         if (g_showStats) RenderStatistics();
+        DrawAimbotTargetMarker();
 
 
 

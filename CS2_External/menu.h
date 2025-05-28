@@ -12,6 +12,7 @@ extern bool g_teamCheck;
 extern bool g_showBoxes;
 extern bool g_showStats;
 extern bool g_shutdown;
-
+extern bool g_drawCrosshair;
+extern bool g_rainbowMode;
 // Renders the configuration menu
 void RenderMenu();

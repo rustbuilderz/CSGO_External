@@ -49,3 +49,4 @@ bool GetBonePosition(int entIdx, int boneIndex, Vector3& out);
 bool GetPlayerName(int entIdx, std::string& out);
 
 bool ReadMem(uintptr_t src, void* dst, size_t sz);
+bool GetEntityHeldWeapon(int entIdx, std::string& out);

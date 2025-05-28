@@ -26,12 +26,21 @@ namespace cs2_dumper {
             constexpr std::ptrdiff_t m_lifeState = 0x348;  // decimal 840
             constexpr std::ptrdiff_t m_vOldOrigin = 0x1324;
 			constexpr std::ptrdiff_t m_angEyeAngles = 0x1438;
+			constexpr std::ptrdiff_t m_bIsScoped = 0x1A3C;
+			constexpr std::ptrdiff_t m_bIsDefusing = 0x1A4C;
+			constexpr std::ptrdiff_t m_bIsReloading = 0x1A50;
+			constexpr std::ptrdiff_t m_bHasHelmet = 0x1A54;
+			constexpr std::ptrdiff_t m_bHasDefuser = 0x1A58;
+			constexpr std::ptrdiff_t m_iHealth = 0x2F8;   // decimal 760
+			constexpr std::ptrdiff_t m_iTeamNum = 0xF4;   // decimal 244
 			constexpr std::ptrdiff_t m_hPlayerPawn = 0x824;
             constexpr std::ptrdiff_t m_pGameSceneNode = 0x328;
             constexpr std::ptrdiff_t m_sSanitizedPlayerName = 0x778;
             constexpr std::ptrdiff_t m_vecAbsOrigin = 0xD0;
             constexpr std::ptrdiff_t m_bBombPlanted = 0x1B7B;
             constexpr std::ptrdiff_t m_vecVelocity = 0x400;  // linear world‐space velocity
+            constexpr std::ptrdiff_t m_hActiveWeapon = 0x58;
+            constexpr std::ptrdiff_t m_pWeaponServices = 0x11A8;
         }
         // Module: engine2.dll
         namespace engine2_dll {

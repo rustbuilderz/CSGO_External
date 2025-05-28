@@ -17,3 +17,6 @@ void DrawName(
 void RenderESPBox(ImDrawList* dl, int entIdx);
 void RenderHealthBar(ImDrawList* dl, int entIdx);
 void RenderTeamText(ImDrawList* dl, int entIdx);
+void RenderWeaponName(ImDrawList* dl, int entIdx);
+void DrawFOVCircle();
+void DrawCrosshair();

@@ -15,7 +15,9 @@ bool g_teamCheck = false;
 bool g_showBoxes = false;
 bool g_showStats = false; 
 bool g_shutdown = false;
-
+bool g_drawFovCircle = false;
+bool g_drawCrosshair = false;
+bool g_rainbowMode = false;
 // Simple nav state
 static int g_currentPage = 1; // 0=Home,1=ESP,2=Settings
 
@@ -140,6 +142,7 @@ void RenderMenu() {
 
         // Settings Tab
         if (ImGui::BeginTabItem("Settings")) {
+            ImGui::Checkbox("Enable Rainbow Mode", &g_rainbowMode);
             ImGui::Spacing();
             ImGui::Text("Configuration:");
             ImGui::Indent(10);

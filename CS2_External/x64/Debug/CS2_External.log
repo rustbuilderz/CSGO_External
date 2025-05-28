@@ -1,2 +1,0 @@
-﻿esp.obj : error LNK2019: unresolved external symbol D3D11CreateDeviceAndSwapChain referenced in function "bool __cdecl CreateDeviceD3D(struct HWND__ *)" (?CreateDeviceD3D@@YA_NPEAUHWND__@@@Z)
-C:\Users\Systems\Documents\Projects\CS2_External\x64\Debug\CS2_External.exe : fatal error LNK1120: 1 unresolved externals
